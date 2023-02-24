@@ -4,6 +4,8 @@
 #include <Eigen/Geometry>
 #include <GeographicLib/LocalCartesian.hpp>
 #include <memory>
+// xiexulin added
+#include <iostream>
 
 namespace cg {
 
@@ -25,8 +27,11 @@ class GNSS : public Observer {
   virtual ~GNSS() {}
 
   void set_params(GpsDataConstPtr gps_data_ptr, const Eigen::Vector3d &I_p_Gps = Eigen::Vector3d::Zero()) {
-    init_lla_ = gps_data_ptr->lla;
+    // xiexulin deleted
+    // init_lla_ = gps_data_ptr->lla;
     I_p_Gps_ = I_p_Gps;
+    // xiexulin added
+    init_lla_ << 33.711130499999996, 110.24378, 539.65;
   }
 
   virtual Eigen::MatrixXd measurement_function(const Eigen::MatrixXd &mat_x) {

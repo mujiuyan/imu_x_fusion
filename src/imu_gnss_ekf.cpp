@@ -32,14 +32,23 @@ class FusionNode {
     ekf_ptr_->observer_ptr_ = std::make_shared<GNSS>();
 
     std::string topic_imu = "/imu/data";
-    std::string topic_gps = "/fix";
+    std::string topic_gps = "/imu/nav_sat_fix";
+    // xiexulin added
+    std::string topic_gps_pub = "/imu/my_nav_sat_fix";
 
-    imu_sub_ = nh.subscribe<sensor_msgs::Imu>(topic_imu, 10, boost::bind(&EKF::imu_callback, ekf_ptr_.get(), _1));
+    // xiexulin deleted
+    // imu_sub_ = nh.subscribe<sensor_msgs::Imu>(topic_imu, 10, boost::bind(&EKF::imu_callback, ekf_ptr_.get(), _1));
+
+    // xiexulin added
+    imu_sub_ = nh.subscribe<sensor_msgs::Imu>(topic_imu, 10, &FusionNode::imu_callback, this);
+
     gps_sub_ = nh.subscribe(topic_gps, 10, &FusionNode::gps_callback, this);
+    // xiexulin added
+    gps_pub_ = nh.advertise<sensor_msgs::NavSatFix>(topic_gps_pub, 10);
 
     // log files
-    file_gps_.open("fusion_gps.csv");
-    file_state_.open("fusion_state.csv");
+    file_gps_.open("./fusion_gps.csv");
+    file_state_.open("./fusion_state.csv");
   }
 
   ~FusionNode() {
@@ -47,11 +56,16 @@ class FusionNode {
     if (file_state_.is_open()) file_state_.close();
   }
 
+  // xiexulin added
+  void imu_callback(const sensor_msgs::ImuConstPtr &imu_msg);
+
   void gps_callback(const sensor_msgs::NavSatFixConstPtr &gps_msg);
 
  private:
   ros::Subscriber imu_sub_;
   ros::Subscriber gps_sub_;
+  // xiexulin added
+  ros::Publisher gps_pub_;
 
   EKFPtr ekf_ptr_;
   Viewer viewer_;
@@ -60,11 +74,35 @@ class FusionNode {
   std::ofstream file_state_;
 };
 
-void FusionNode::gps_callback(const sensor_msgs::NavSatFixConstPtr &gps_msg) {
-  if (gps_msg->status.status != 2) {
-    printf("[cggos %s] ERROR: Bad GPS Message!!!\n", __FUNCTION__);
+// xiexulin added
+void FusionNode::imu_callback(const sensor_msgs::ImuConstPtr& imu_msg) {
+  ekf_ptr_->imu_callback(imu_msg);
+  if (!ekf_ptr_->inited_)
     return;
+  // publish data
+  {
+    // save state p q lla
+    const auto &lla = std::dynamic_pointer_cast<GNSS>(ekf_ptr_->observer_ptr_)->l2g(ekf_ptr_->state_ptr_->p_wb_);
+    sensor_msgs::NavSatFix gpsData;
+    gpsData.header = imu_msg->header;
+    gpsData.latitude = lla[0];
+    gpsData.longitude = lla[1];
+    gpsData.altitude = lla[2];
+    gpsData.position_covariance[0] = 1;
+    gps_pub_.publish(gpsData);
+    // const Eigen::Quaterniond q_GI(ekf_ptr_->state_ptr_->Rwb_);
+    // file_state_ << std::fixed << std::setprecision(15) << ekf_ptr_->state_ptr_->timestamp << ", "
+    //             << ekf_ptr_->state_ptr_->p_wb_[0] << ", " << ekf_ptr_->state_ptr_->p_wb_[1] << ", "
+    //             << ekf_ptr_->state_ptr_->p_wb_[2] << ", " << q_GI.x() << ", " << q_GI.y() << ", " << q_GI.z() << ", "
+    //             << q_GI.w() << ", " << lla[0] << ", " << lla[1] << ", " << lla[2] << std::endl;
   }
+}
+
+void FusionNode::gps_callback(const sensor_msgs::NavSatFixConstPtr &gps_msg) {
+  // if (gps_msg->status.status != 2) {
+  //   printf("[cggos %s] ERROR: Bad GPS Message!!!\n", __FUNCTION__);
+  //   return;
+  // }
 
   GpsDataPtr gps_data_ptr = std::make_shared<GpsData>();
   gps_data_ptr->timestamp = gps_msg->header.stamp.toSec();

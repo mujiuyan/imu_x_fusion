@@ -173,6 +173,9 @@ target_link_libraries(imu_vo_ukf_node ${catkin_LIBRARIES} ${OpenCV_LIBS})
 add_executable(imu_vo_map_node src/imu_vo_map.cpp)
 target_link_libraries(imu_vo_map_node ${catkin_LIBRARIES} ${OpenCV_LIBS} ${CERES_LIBRARIES})
 
+add_executable(my_record_node src/my_record.cpp)
+target_link_libraries(my_record_node ${catkin_LIBRARIES} ${GeographicLib_LIBRARIES})
+
 #############
 ## Install ##
 #############

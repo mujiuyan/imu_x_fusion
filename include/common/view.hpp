@@ -8,6 +8,9 @@
 
 #include "common/state.hpp"
 
+// xiexulin added
+#include <Eigen/Dense>
+
 namespace cg {
 class Viewer {
  public:
@@ -82,6 +85,16 @@ class Viewer {
     geometry_msgs::PoseStamped pose_stamped;
     pose_stamped.header = odom_msg.header;
     pose_stamped.pose = odom_msg.pose.pose;
+    // xiexulin added, noting: only transform the position, not the quaternion
+    Eigen::Vector3d point;
+    Eigen::Matrix3d rotateMatrix;
+    point << pose_stamped.pose.position.x, pose_stamped.pose.position.y, pose_stamped.pose.position.z;
+    rotateMatrix << -0.4578924, -0.8890076, 0.0000000, 0.8890076, -0.4578924, 0.0000000, 0.0000000, 0.0000000, 1.0000000;
+    point = rotateMatrix * point;
+    pose_stamped.pose.position.x = point(0);
+    pose_stamped.pose.position.y = point(1);
+    pose_stamped.pose.position.z = point(2);
+
     nav_path_.header = pose_stamped.header;
     nav_path_.poses.push_back(pose_stamped);
     path_pub_.publish(nav_path_);
